@@ -5,7 +5,7 @@ library(tidyverse)
 library(plotly)
 
 
-findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, stepsd2=0.005,mzc=700,cutoffint = 1000, cutoffr=0.4, rt){
+findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, stepsd2=0.005,mzc=700,cutoffint = 1000, cutoffr=0.4, rt, clustercf =10){
   mzr <- round(mz)
   sm <- mz*sf
   sd <- ceiling(sm)-sm
@@ -27,8 +27,8 @@ findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, st
     rtt <- rt[index & ins > cutoffint]
     
     if(length(mzt)>=2){
-      c <- cutree(hclust(dist(mzt)),h=10)
-      t <- cutree(hclust(dist(rtt)), h = 10)
+      c <- cutree(hclust(dist(mzt)),h=clustercf)
+      t <- cutree(hclust(dist(rtt)), h = clustercf)
       u <- paste0(c, t)
       cn <- length(unique(u))
       lit <- cbind.data.frame(li,u,i)
@@ -38,8 +38,8 @@ findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, st
         
         if(length(mzt2)>=2){
           if(length(unique(li2$ins))>1){
-            ratio <- max(li2[li2[,5]!=max(li2[,5]),5])/max(li2[,5])
-            diff <- abs(li2$mzr[round(li2[,5]) == round(max(li2[li2[,5]!=max(li2[,5]),5]))] - li2$mzr[which.max(li2[,5])])
+            ratio <- max(li2$ins[li2$ins != max(li2$ins)]) / max(li2$ins)
+            diff <- abs(li2$mzr[round(li2$ins) == round(max(li2$ins[li2$ins != max(li2$ins)]))] - li2$mzr[which.max(li2$ins)])
           }else{
             ratio <- 1
             diff <- abs(li2$mzr[1]-li2$mzr[2])
@@ -56,7 +56,7 @@ findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, st
 }
 
 
-findhalo2 <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, stepsd2=0.005,mzc=700,cutoffint = 1000, cutoffr=0.4){
+findhalo2 <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, stepsd2=0.005,mzc=700,cutoffint = 1000, cutoffr=0.4, clustercf = 10){
   mzr <- round(mz)
   sm <- mz*sf
   sd <- ceiling(sm)-sm
@@ -76,7 +76,7 @@ findhalo2 <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, s
     mzt <- mzr[index&ins>cutoffint]
     
     if(length(mzt)>=2){
-      c <- cutree(hclust(dist(mzt)),h=10)
+      c <- cutree(hclust(dist(mzt)),h= clustercf)
       cn <- length(unique(c))
       lit <- cbind.data.frame(li,c,i)
       for (j in 1:cn){
@@ -85,8 +85,8 @@ findhalo2 <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, s
         
         if(length(mzt2)>=2){
           if(length(unique(li2$ins))>1){
-            ratio <- max(li2[li2[,5]!=max(li2[,5]),5])/max(li2[,5])
-            diff <- abs(li2$mzr[round(li2[,5]) == round(max(li2[li2[,5]!=max(li2[,5]),5]))] - li2$mzr[which.max(li2[,5])])
+            ratio <- max(li2$ins[li2$ins != max(li2$ins)]) / max(li2$ins)
+            diff <- abs(li2$mzr[round(li2$ins) == round(max(li2$ins[li2$ins != max(li2$ins)]))] - li2$mzr[which.max(li2$ins)])
           }else{
             ratio <- 1
             diff <- abs(li2$mzr[1]-li2$mzr[2])
@@ -122,7 +122,8 @@ ui <- dashboardPage(
                      sliderInput("Y1_sd", "Y1_sd", min = 0.001, max = 0.1, value = 0.003),
                      sliderInput("Y2_sd", "Y2_sd", min = 0.001, max = 0.1, value = 0.005),
                      numericInput("threshold_diff", "Threshold difference", value = 100/40),
-                     numericInput("threshold_int_min", "Minimum intensity threshold", value = 1000)
+                     numericInput("threshold_int_min", "Minimum intensity threshold", value = 1000),
+                     sliderInput("cluster_cf", "Cluster height", min = 1, max = 20, step = 1, value = 10)
                    )
   ),
   dashboardBody(
@@ -143,14 +144,30 @@ server <- function(input, output, session){
   result <- reactive({
     if(input$check_rt){
       misDatos <- misDatos()
-      t <- findhalo(mz = misDatos$X, ins = misDatos$I, sf = input$md_nom/input$md_exact, step = input$Y_step,stepsd1=input$Y1_sd, 
-                    stepsd2=input$Y2_sd,mzc=input$X_change_sd,cutoffint = input$threshold_int_min, cutoffr=1/input$threshold_diff, rt = misDatos$rt)
+      t <- findhalo(mz = misDatos$X, 
+                    ins = misDatos$I, 
+                    sf = input$md_nom/input$md_exact, 
+                    step = input$Y_step,stepsd1=input$Y1_sd, 
+                    stepsd2=input$Y2_sd,
+                    mzc=input$X_change_sd,
+                    cutoffint = input$threshold_int_min, 
+                    cutoffr=1/input$threshold_diff, 
+                    rt = misDatos$rt, 
+                    clustercf = input$cluster_cf
+                    )
       return(t)
       
     }else{
       misDatos <- misDatos()
-      t <- findhalo2(mz = misDatos$X, ins = misDatos$I, sf = input$md_nom/input$md_exact, step = input$Y_step,stepsd1=input$Y1_sd, 
-                     stepsd2=input$Y2_sd,mzc=input$X_change_sd,cutoffint = input$threshold_int_min, cutoffr=1/input$threshold_diff)
+      t <- findhalo2(mz = misDatos$X,
+                     ins = misDatos$I,
+                     sf = input$md_nom/input$md_exact,
+                     step = input$Y_step,stepsd1=input$Y1_sd, 
+                     stepsd2=input$Y2_sd,
+                     mzc=input$X_change_sd,
+                     cutoffint = input$threshold_int_min,
+                     cutoffr=1/input$threshold_diff,
+                     clustercf = input$cluster_cf)
       return(t)
     }
   })
