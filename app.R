@@ -1,5 +1,6 @@
 library(shiny)
 library(shinydashboard)
+library(rhandsontable)
 library(tidyverse)
 library(plotly)
 
@@ -108,7 +109,7 @@ ui <- dashboardPage(
   dashboardSidebar(width = 300,
                    sidebarMenu(
                      fileInput("file1", "Select CSV file", accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
-                     checkboxInput("check_rt", "Data contain retention times"),
+                     checkboxInput("check_rt", "Include retention times"),
                      actionButton("click_file", "Select"),
                      fluidRow(
                        column(4, checkboxInput("check_int", "Show intensity")),
@@ -128,7 +129,7 @@ ui <- dashboardPage(
     fluidRow(
       box(plotlyOutput("plot1"),  width = 12)),
     fluidRow(
-      box(tableOutput("table1"),  width = 12))
+      box(rHandsontableOutput("table1"),  width = 12))
   )
 )
 
@@ -164,8 +165,10 @@ server <- function(input, output, session){
     ## PLOTTING OUTPUT##
     
     ###Datatable###
-    output$table1 <- renderTable({
-      result()
+    output$table1 <- renderRHandsontable({
+      rhandsontable(result(), width = 700, height = 400) %>%
+        hot_cols(fixedColumnsLeft = 1) %>%
+        hot_rows(fixedRowsTop = 1)
       
     })
     
