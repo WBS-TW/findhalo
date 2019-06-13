@@ -5,7 +5,17 @@ library(tidyverse)
 library(plotly)
 
 
-findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, stepsd2=0.005,mzc=700,cutoffint = 1000, cutoffr=0.4, rt, clustercf =10){
+findhalo_rt <- function(mz,
+                     intensity,
+                     sf = 79/78.917789,
+                     step = 0.001,
+                     stepsd1=0.003,
+                     stepsd2=0.005,
+                     mzc=700,
+                     cutoffint = 1000,
+                     cutoffr=0.4,
+                     rt,
+                     clustercf =10){
   mzr <- round(mz)
   sm <- mz*sf
   sd <- ceiling(sm)-sm
@@ -13,7 +23,12 @@ findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, st
   smstep <- seq(0,1,step)
   rt <- rt
   
-  data <- cbind.data.frame(mz=mz, mzr = mzr, sm = sm,sd =sd, ins=ins, rt = rt)
+  data <- cbind.data.frame(mz=mz,
+                           mzr = mzr,
+                           sm = sm,
+                           sd =sd,
+                           intensity=intensity,
+                           rt = rt)
   data2 <<- data
   
   result <- NULL
@@ -22,9 +37,9 @@ findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, st
     mini = smstep[i]-smsd
     index = sd<maxi & sd>mini
     
-    li <- data[index & ins > cutoffint,]
-    mzt <- mzr[index & ins > cutoffint]
-    rtt <- rt[index & ins > cutoffint]
+    li <- data[index & intensity > cutoffint,]
+    mzt <- mzr[index & intensity > cutoffint]
+    rtt <- rt[index & intensity > cutoffint]
     
     if(length(mzt)>=2){
       c <- cutree(hclust(dist(mzt)),h=clustercf)
@@ -37,9 +52,9 @@ findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, st
         mzt2 <- lit$mzr[lit[,7]==j]
         
         if(length(mzt2)>=2){
-          if(length(unique(li2$ins))>1){
-            ratio <- max(li2$ins[li2$ins != max(li2$ins)]) / max(li2$ins)
-            diff <- abs(li2$mzr[round(li2$ins) == round(max(li2$ins[li2$ins != max(li2$ins)]))] - li2$mzr[which.max(li2$ins)])
+          if(length(unique(li2$intensity))>1){
+            ratio <- max(li2$intensity[li2$intensity != max(li2$intensity)]) / max(li2$intensity)
+            diff <- abs(li2$mzr[round(li2$intensity) == round(max(li2$intensity[li2$intensity != max(li2$intensity)]))] - li2$mzr[which.max(li2$intensity)])
           }else{
             ratio <- 1
             diff <- abs(li2$mzr[1]-li2$mzr[2])
@@ -56,24 +71,32 @@ findhalo <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, st
 }
 
 
-findhalo2 <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, stepsd2=0.005,mzc=700,cutoffint = 1000, cutoffr=0.4, clustercf = 10){
+findhalo_no_rt <- function(mz,
+                      intensity,
+                      sf = 79/78.917789,
+                      step = 0.001,
+                      stepsd1=0.003,
+                      stepsd2=0.005,
+                      mzc=700,cutoffint = 1000,
+                      cutoffr=0.4,
+                      clustercf = 10){
   mzr <- round(mz)
   sm <- mz*sf
   sd <- ceiling(sm)-sm
   smsd <- ifelse(mz<=mzc,stepsd1,stepsd2)
   smstep <- seq(0,1,step)
-  #col <- colorspace::rainbow_hcl(length(smstep))
-  data <- cbind.data.frame(mz=mz, mzr = mzr, sm = sm,sd =sd, ins=ins)
+
+  data <- cbind.data.frame(mz=mz, mzr = mzr, sm = sm,sd =sd, intensity=intensity)
   data2 <<- data
-  #plot(data$sd~data$sm,type = 'n',xlab = 'm/z',ylab = 'scaled MD')
+
   result <- NULL
   for(i in 1:length(smstep)){
     maxi = smstep[i]+smsd
     mini = smstep[i]-smsd
     index = sd<maxi & sd>mini
     
-    li <- data[index&ins>cutoffint,]
-    mzt <- mzr[index&ins>cutoffint]
+    li <- data[index&intensity>cutoffint,]
+    mzt <- mzr[index&intensity>cutoffint]
     
     if(length(mzt)>=2){
       c <- cutree(hclust(dist(mzt)),h= clustercf)
@@ -84,16 +107,15 @@ findhalo2 <- function(mz, ins, sf = 79/78.917789, step = 0.001, stepsd1=0.003, s
         mzt2 <- lit$mzr[lit[,6]==j]
         
         if(length(mzt2)>=2){
-          if(length(unique(li2$ins))>1){
-            ratio <- max(li2$ins[li2$ins != max(li2$ins)]) / max(li2$ins)
-            diff <- abs(li2$mzr[round(li2$ins) == round(max(li2$ins[li2$ins != max(li2$ins)]))] - li2$mzr[which.max(li2$ins)])
+          if(length(unique(li2$intensity))>1){
+            ratio <- max(li2$intensity[li2$intensity != max(li2$intensity)]) / max(li2$intensity)
+            diff <- abs(li2$mzr[round(li2$intensity) == round(max(li2$intensity[li2$intensity != max(li2$intensity)]))] - li2$mzr[which.max(li2$intensity)])
           }else{
             ratio <- 1
             diff <- abs(li2$mzr[1]-li2$mzr[2])
           }
           
           if(ratio>cutoffr&round(diff)==2){
-            #points(li2$sd~li2$sm,pch = 19,col = col[i])
             result <- rbind.data.frame(result,li2)
           }
         }
@@ -135,7 +157,7 @@ ui <- dashboardPage(
 )
 
 server <- function(input, output, session){
-  misDatos <- reactive({
+  raw_data <- reactive({
     req(input$file1)
     df <- read.csv(input$file1$datapath)
     return(df)
@@ -143,24 +165,24 @@ server <- function(input, output, session){
   
   result <- reactive({
     if(input$check_rt){
-      misDatos <- misDatos()
-      t <- findhalo(mz = misDatos$X, 
-                    ins = misDatos$I, 
+      raw_data <- raw_data()
+      t <- findhalo_rt(mz = raw_data$mz, 
+                    intensity = raw_data$intensity, 
                     sf = input$md_nom/input$md_exact, 
                     step = input$Y_step,stepsd1=input$Y1_sd, 
                     stepsd2=input$Y2_sd,
                     mzc=input$X_change_sd,
                     cutoffint = input$threshold_int_min, 
                     cutoffr=1/input$threshold_diff, 
-                    rt = misDatos$rt, 
+                    rt = raw_data$rt, 
                     clustercf = input$cluster_cf
                     )
       return(t)
       
     }else{
-      misDatos <- misDatos()
-      t <- findhalo2(mz = misDatos$X,
-                     ins = misDatos$I,
+      raw_data <- raw_data()
+      t <- findhalo_no_rt(mz = raw_data$mz,
+                     intensity = raw_data$intensity,
                      sf = input$md_nom/input$md_exact,
                      step = input$Y_step,stepsd1=input$Y1_sd, 
                      stepsd2=input$Y2_sd,
@@ -202,7 +224,7 @@ server <- function(input, output, session){
               x = df$sm,
               y = df$sd,
               type = "scatter",
-              size = df$ins,
+              size = df$intensity,
               color = df$i,
               hovertext = paste("RT: ", df$rt)
             )
@@ -218,7 +240,8 @@ server <- function(input, output, session){
         
         if (input$check_overlay) {
           p <- p %>%
-            add_markers(x = ~data2$sm, y = ~data2$sd, color = I("grey"), opacity = 0.2, hovertext = paste("RT: ", data2$rt))
+            add_markers(x = ~data2$sm, y = ~data2$sd, 
+                        color = I("grey"), opacity = 0.2, hovertext = paste("RT: ", data2$rt))
         } else {
           p <- p
         }
@@ -229,11 +252,12 @@ server <- function(input, output, session){
               x = df$sm,
               y = df$sd,
               type = "scatter",
-              size = df$ins,
+              size = df$intensity,
               color = df$i,
               hovertext = paste("RT: ", df$rt)
             ) %>%
-            add_markers(x = ~data2$sm, y = ~data2$sd, color = I("grey"), opacity = 0.2, size = ~data2$ins, hovertext = paste("RT: ", data2$rt))
+            add_markers(x = ~data2$sm, y = ~data2$sd, 
+                        color = I("grey"), opacity = 0.2, size = ~data2$intensity, hovertext = paste("RT: ", data2$rt))
         } else {
           p <- p
         }
@@ -249,7 +273,7 @@ server <- function(input, output, session){
               x = df$sm,
               y = df$sd,
               type = "scatter",
-              size = df$ins,
+              size = df$intensity,
               color = df$i)
         } else {
           p <- df %>%
@@ -262,7 +286,8 @@ server <- function(input, output, session){
         
         if (input$check_overlay) {
           p <- p %>%
-            add_markers(x = ~data2$sm, y = ~data2$sd, color = I("grey"), opacity = 0.2)
+            add_markers(x = ~data2$sm, y = ~data2$sd, 
+                        color = I("grey"), opacity = 0.2)
         } else {
           p <- p
         }
@@ -273,10 +298,11 @@ server <- function(input, output, session){
               x = df$sm,
               y = df$sd,
               type = "scatter",
-              size = df$ins,
+              size = df$intensity,
               color = df$i
             ) %>%
-            add_markers(x = ~data2$sm, y = ~data2$sd, color = I("grey"), opacity = 0.2, size = ~data2$ins)
+            add_markers(x = ~data2$sm, y = ~data2$sd, 
+                        color = I("grey"), opacity = 0.2, size = ~data2$intensity)
         } else {
           p <- p
         }
