@@ -125,9 +125,10 @@ findhalo_no_rt <- function(mz,
   return(result[!duplicated(result$mz), ])
 }
 
+#------UI-------------------------------------------------------------------------
 
 ui <- dashboardPage(
-  dashboardHeader(title = "Mass defect"),
+  dashboardHeader(title = "Findhalo: mass defect filtering"),
   dashboardSidebar(width = 300,
                    sidebarMenu(
                      fileInput("file1", "Select CSV file", accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
@@ -156,13 +157,17 @@ ui <- dashboardPage(
   )
 )
 
+
+#-------------SERVER--------------------------------------------------------------
+
 server <- function(input, output, session){
   raw_data <- reactive({
     req(input$file1)
     df <- read.csv(input$file1$datapath)
     return(df)
   })
-  
+
+
   result <- reactive({
     if(input$check_rt){
       raw_data <- raw_data()
@@ -320,4 +325,11 @@ server <- function(input, output, session){
   
 }
 
+#------------RUN APP-----------------------------------------------
+
 shinyApp(ui, server)
+
+# testing performance
+# profvis::profvis(
+#   runApp(shinyApp(ui, server))
+# )

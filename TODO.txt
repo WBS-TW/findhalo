@@ -1,0 +1,4 @@
+
+- Add linked brushing to bar plot to see isotopic patterns
+- Change table to interactive
+- Optimize algorithm
