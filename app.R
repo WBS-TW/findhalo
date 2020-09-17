@@ -15,7 +15,7 @@ findhalo_rt <- function(mz,
                      cutoffint = 1000,
                      cutoffr=0.4,
                      rt,
-                     clustercf =10){
+                     clustercf =5){
   mzr <- round(mz)
   sm <- mz*sf
   sd <- ceiling(sm)-sm
@@ -79,7 +79,7 @@ findhalo_no_rt <- function(mz,
                       stepsd2=0.005,
                       mzc=700,cutoffint = 1000,
                       cutoffr=0.4,
-                      clustercf = 10){
+                      clustercf = 5){
   mzr <- round(mz)
   sm <- mz*sf
   sd <- ceiling(sm)-sm
@@ -146,7 +146,7 @@ ui <- dashboardPage(
                      sliderInput("Y2_sd", "Y2_sd", min = 0.001, max = 0.1, value = 0.005),
                      numericInput("threshold_diff", "Threshold difference", value = 100/40),
                      numericInput("threshold_int_min", "Minimum intensity threshold", value = 1000),
-                     sliderInput("cluster_cf", "Cluster height", min = 1, max = 20, step = 1, value = 10)
+                     sliderInput("cluster_cf", "Cluster height", min = 1, max = 20, step = 1, value = 5)
                    )
   ),
   dashboardBody(
