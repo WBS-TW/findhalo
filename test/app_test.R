@@ -3,10 +3,11 @@ library(shinydashboard)
 library(rhandsontable)
 library(tidyverse)
 library(plotly)
-
+library(profvis)
 
 findhalo_rt <- function(mz,
                      intensity,
+                     rt,
                      sf = 79/78.917789,
                      step = 0.001,
                      stepsd1=0.003,
@@ -14,7 +15,6 @@ findhalo_rt <- function(mz,
                      mzc=700,
                      cutoffint = 1000,
                      cutoffr=0.4,
-                     rt,
                      clustercf =5){
   mzr <- round(mz)
   sm <- mz*sf
@@ -71,6 +71,14 @@ findhalo_rt <- function(mz,
 }
 
 
+
+
+
+
+
+
+
+
 findhalo_no_rt <- function(mz,
                       intensity,
                       sf = 79/78.917789,
@@ -125,91 +133,31 @@ findhalo_no_rt <- function(mz,
   return(result[!duplicated(result$mz), ])
 }
 
-#------UI-------------------------------------------------------------------------
-
-ui <- dashboardPage(
-  dashboardHeader(title = "Findhalo: mass defect filtering"),
-  dashboardSidebar(width = 300,
-                   sidebarMenu(
-                     fileInput("file1", "Select CSV file", accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
-                     checkboxInput("check_rt", "Include retention times"),
-                     actionButton("click_file", "Select"),
-                     fluidRow(
-                       column(4, checkboxInput("check_int", "Show intensity")),
-                       column(4, checkboxInput("check_overlay", "Overlay data"))
-                     ),
-                     numericInput("md_nom", "Nomin mass", value = 79, width = "60%"),
-                     numericInput("md_exact", "Exact mass", value = 78.917789),
-                     sliderInput("Y_step", "Y_step", min = 0.001, max = 0.1, value = 0.001),
-                     numericInput("X_change_sd", "X_change_sd", value = 700),
-                     sliderInput("Y1_sd", "Y1_sd", min = 0.001, max = 0.1, value = 0.003),
-                     sliderInput("Y2_sd", "Y2_sd", min = 0.001, max = 0.1, value = 0.005),
-                     numericInput("threshold_diff", "Threshold difference", value = 100/40),
-                     numericInput("threshold_int_min", "Minimum intensity threshold", value = 1000),
-                     sliderInput("cluster_cf", "Cluster height", min = 1, max = 20, step = 1, value = 5)
-                   )
-  ),
-  dashboardBody(
-    fluidRow(
-      box(plotlyOutput("plot1"),  width = 12)),
-    fluidRow(
-      box(rHandsontableOutput("table1"),  width = 12))
-  )
-)
-
 
 #-------------SERVER--------------------------------------------------------------
 
-server <- function(input, output, session){
-  raw_data <- reactive({
-    req(input$file1)
-    df <- read.csv(input$file1$datapath)
-    return(df)
-  })
+
+raw_data <- read_csv("data/fGroups_filt_df.csv") %>%
+  slice_head(n = 5000)
+
+profvis(
+t <- findhalo_rt(mz = raw_data$mz,
+                 intensity = raw_data$intensity,
+                 rt = raw_data$rt,
+                 sf = 79/78.917789,
+                 step = 0.001,
+                 stepsd1=0.003,
+                 stepsd2=0.005,
+                 mzc=700,
+                 cutoffint = 1000,
+                 cutoffr=0.4,
+                 clustercf =5
+                 )
+)
 
 
-  result <- reactive({
-    if(input$check_rt){
-      raw_data <- raw_data()
-      t <- findhalo_rt(mz = raw_data$mz, 
-                    intensity = raw_data$intensity, 
-                    sf = input$md_nom/input$md_exact, 
-                    step = input$Y_step,stepsd1=input$Y1_sd, 
-                    stepsd2=input$Y2_sd,
-                    mzc=input$X_change_sd,
-                    cutoffint = input$threshold_int_min, 
-                    cutoffr=1/input$threshold_diff, 
-                    rt = raw_data$rt, 
-                    clustercf = input$cluster_cf
-                    )
-      return(t)
-      
-    }else{
-      raw_data <- raw_data()
-      t <- findhalo_no_rt(mz = raw_data$mz,
-                     intensity = raw_data$intensity,
-                     sf = input$md_nom/input$md_exact,
-                     step = input$Y_step,stepsd1=input$Y1_sd, 
-                     stepsd2=input$Y2_sd,
-                     mzc=input$X_change_sd,
-                     cutoffint = input$threshold_int_min,
-                     cutoffr=1/input$threshold_diff,
-                     clustercf = input$cluster_cf)
-      return(t)
-    }
-  })
-  
-  
-  # OBSERVEEVENT #
-  observeEvent(input$click_file, {
-    
-    
-    
-    
-    ## PLOTTING OUTPUT##
-    
-    ###Datatable###
-    output$table1 <- renderRHandsontable({
+
+ output$table1 <- renderRHandsontable({
       rhandsontable(result(), width = 700, height = 400) %>%
         hot_cols(fixedColumnsLeft = 1) %>%
         hot_rows(fixedRowsTop = 1)
@@ -231,8 +179,7 @@ server <- function(input, output, session){
               type = "scatter",
               size = df$intensity,
               color = df$i,
-              hovertext = paste("RT: ", df$rt, "\n",
-                                "mz: ", df$mz)
+              hovertext = paste("RT: ", df$rt)
             )
         } else {
           p <- df %>%
@@ -241,15 +188,13 @@ server <- function(input, output, session){
               y = df$sd,
               type = "scatter",
               color = df$i,
-              hovertext = paste("RT: ", df$rt, "\n",
-                                "mz: ", df$mz))
+              hovertext = paste("RT: ", df$rt))
         }
         
         if (input$check_overlay) {
           p <- p %>%
             add_markers(x = ~data2$sm, y = ~data2$sd, 
-                        color = I("grey"), opacity = 0.2, hovertext = paste("RT: ", df$rt, "\n",
-                                                                            "mz: ", df$mz))
+                        color = I("grey"), opacity = 0.2, hovertext = paste("RT: ", data2$rt))
         } else {
           p <- p
         }
@@ -262,12 +207,10 @@ server <- function(input, output, session){
               type = "scatter",
               size = df$intensity,
               color = df$i,
-              hovertext = paste("RT: ", df$rt, "\n",
-                                "mz: ", df$mz)
+              hovertext = paste("RT: ", df$rt)
             ) %>%
             add_markers(x = ~data2$sm, y = ~data2$sd, 
-                        color = I("grey"), opacity = 0.2, size = ~data2$intensity, hovertext = paste("RT: ", df$rt, "\n",
-                                                                                                     "mz: ", df$mz))
+                        color = I("grey"), opacity = 0.2, size = ~data2$intensity, hovertext = paste("RT: ", data2$rt))
         } else {
           p <- p
         }
@@ -325,16 +268,5 @@ server <- function(input, output, session){
       
     })
     
-  }) # END OF OBSERVEEVENT #
   
-  
-}
-
-#------------RUN APP-----------------------------------------------
-
-shinyApp(ui, server)
-
-# testing performance
-# profvis::profvis(
-#   runApp(shinyApp(ui, server))
-# )
+    
